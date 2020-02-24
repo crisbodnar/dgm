@@ -331,7 +331,7 @@ np.random.seed(0)
 random.seed(0)
 
 # 10-fold cross-validation
-kf = StratifiedKFold(n_splits=10, random_state=0, shuffle=False)
+kf = StratifiedKFold(n_splits=10, shuffle=False)
 
 curr_fold = 0
 test_accs = []
@@ -349,7 +349,7 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
   test_dataset = dataset[torch.LongTensor(test_idxs)]
 
   # Split first set into train and val
-  kf2 = StratifiedKFold(n_splits=9, random_state=0, shuffle=False)
+  kf2 = StratifiedKFold(n_splits=9, shuffle=False)
   for train_idxs, val_idxs in kf2.split(train_val_dataset,
                                         train_val_dataset.data.y):
       train_dataset = train_val_dataset[torch.LongTensor(train_idxs)]
