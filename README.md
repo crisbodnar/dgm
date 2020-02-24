@@ -25,7 +25,7 @@ $ pip3 install -r requirements.txt
 Example visualisation for the synthetic spammer graph and Cora are provided and can be run 
 with ```python run_dgm.py``` from the root directory of the project. The visualisations are saved 
 in the ```plots``` directory. For most purposes, we recommend to use Structural Deep Graph Mapper (SDGM),
-described in the appendix B of the paper. 
+described in Appendix B of the paper. 
 
 An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a different class. 
 

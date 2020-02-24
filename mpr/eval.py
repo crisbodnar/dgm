@@ -16,7 +16,7 @@ from torch_geometric.datasets import TUDataset
 from torch_geometric.transforms import OneHotDegree
 from torch_geometric.utils import to_networkx, dense_to_sparse
 
-from .utils import dense_diff_pool, dense_mincut_pool, to_dense_adj
+from utils import dense_diff_pool, dense_mincut_pool, to_dense_adj
 
 EPS = 1e-5
 
