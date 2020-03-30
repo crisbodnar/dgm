@@ -80,15 +80,13 @@ def compute_preimages(G, f, intervals=generate_intervals()):
   return preimages
 
 
-def build_mapper_graph(G, preimages, weighted=False, cluster=True,
-  return_nx=True):
+def build_mapper_graph(G, preimages, cluster=False, return_nx=False):
   """Given a graph G and the preimages of the function f on G it builds the
     mapper graph.
 
   params:
     G: The graph to be visualized.
     preimages: The preimages of a function f on the nodes of graph G.
-    keep_isolated: Keeps the isolated nodes in the new graph
   """
   mnode = 0
   mnode_to_nodes = []
@@ -284,7 +282,7 @@ def mpr_forward(data, pool=True):
       # Compute pre-image f^-1(G)
       preimages = compute_preimages(G, vv, intervals)
       _, [mnode_to_nodes, mnode_to_color, node_to_mnode, adj] = build_mapper_graph(
-          G, preimages, cluster=False, return_nx=False)
+          G, preimages)
 
       mnode_features = torch.empty(size=(len(mnode_to_color), x.size(1)),
                                    dtype=torch.float).to(device)
