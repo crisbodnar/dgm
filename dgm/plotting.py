@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 
 from matplotlib import cm
 
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+
 
 def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12, 10), colorbar=True, name='plot'):
     """Example function for plotting the Mapper graph using networkx."""
@@ -74,3 +77,16 @@ def color_from_bivariate_data(Z1, Z2, cmap1=plt.cm.cool, cmap2=plt.cm.coolwarm):
     # Color for each point
     Z_color = np.sum([Z1_color, Z2_color], axis=0) / 2.0
     return Z_color
+
+
+def reduce_embedding(embed, components, method):
+    print('Reducing the embedding...')
+
+    if method == 'tsne':
+        embed = TSNE(n_components=components).fit_transform(embed)
+    else:
+        raise ValueError()
+
+    embed -= np.min(embed, axis=0)
+    embed /= np.max(embed, axis=0)
+    return embed
