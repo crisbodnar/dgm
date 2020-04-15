@@ -80,7 +80,7 @@ class DGIEncoderNet(torch.nn.Module):
 class DGILearner:
     def __init__(self, inp_dim, out_dim, device):
         self.encoder = DGIEncoderNet(inp_dim, out_dim)
-        self.dgi = DeepGraphInfomax(inp_dim, encoder=self.encoder, summary=self.readout, corruption=self.corrupt)
+        self.dgi = DeepGraphInfomax(out_dim, encoder=self.encoder, summary=self.readout, corruption=self.corrupt)
         self.dgi = self.dgi.to(device)
 
         self.optimizer = torch.optim.Adam(self.dgi.parameters())
@@ -89,21 +89,21 @@ class DGILearner:
         pos_z, _, _ = self.dgi(data.x, data.edge_index, data.edge_attr, msk=None)
         return pos_z
 
-    def readout(self, z, msk=None, **kwargs):
+    def readout(self, z, x, edge_index, edge_attr, msk=None):
         if msk is None:
             return torch.sigmoid(torch.mean(z, 0))
         else:
             return torch.sigmoid(torch.sum(z[msk], 0) / torch.sum(msk))
 
-    def corrupt(self, x, edge_index, **kwargs):
+    def corrupt(self, x, edge_index, edge_attr, msk=None):
         shuffled_rows = torch.randperm(len(x))
         shuffled_x = x[shuffled_rows, :]
-        return shuffled_x, edge_index
+        return shuffled_x, edge_index, edge_attr
 
     def evaluate_loss(self, data, mode):
         # use masking for loss evaluation
-        pos_z_train, neg_z_train, summ_train = self.dgi(data.x, data.edge_index, msk=data.train_mask)
-        pos_z_test, neg_z_test, summ_test = self.dgi(data.x, data.edge_index, msk=data.test_mask)
+        pos_z_train, neg_z_train, summ_train = self.dgi(data.x, data.edge_index, data.edge_attr, msk=data.train_mask)
+        pos_z_test, neg_z_test, summ_test = self.dgi(data.x, data.edge_index, data.edge_attr, msk=data.test_mask)
 
         if mode == 'train':
             return self.dgi.loss(pos_z_train, neg_z_train, summ_train)
