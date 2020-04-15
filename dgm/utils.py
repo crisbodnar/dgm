@@ -10,16 +10,20 @@ from torch_geometric.datasets import Planetoid
 def load_dataset(dataset):
     if dataset == 'cora':
         dataset = Planetoid(root='/tmp/Cora', name='Cora')
+        num_classes = dataset.num_classes
     elif dataset == 'pubmed':
         dataset = Planetoid(root='/tmp/PubMed', name='PubMed')
+        num_classes = dataset.num_classes
     elif dataset == 'citeseer':
         dataset = Planetoid(root='/tmp/CiteSeer', name='CiteSeer')
+        num_classes = dataset.num_classes
     elif dataset == 'spam':
-        return load_spam_dataset()
+        dataset = load_spam_dataset()
+        num_classes = 2
     else:
         raise ValueError('Unsupported dataset {}'.format(dataset))
 
-    return dataset[0]
+    return dataset[0], num_classes
 
 
 def name_from_args(args, labeled):

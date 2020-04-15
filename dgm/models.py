@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 
+from torch import nn
 from torch_geometric.nn import GCNConv, DeepGraphInfomax
 
 
@@ -11,16 +12,19 @@ class GCNNet(torch.nn.Module):
         self.conv2 = GCNConv(32, 64)
         self.conv3 = GCNConv(64, 128)
         self.conv4 = GCNConv(128, 128)
-        self.conv5 = GCNConv(128, out_dim)
+
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(128, out_dim)
 
     def forward(self, x, edge_index, edge_attr):
         x = F.relu(self.conv1(x, edge_index, edge_attr))
         x = F.relu(self.conv2(x, edge_index, edge_attr))
         x = F.relu(self.conv3(x, edge_index, edge_attr))
         x = F.relu(self.conv4(x, edge_index, edge_attr))
-        x = F.dropout(x, training = self.training)
-        x = self.conv5(x, edge_index, edge_attr)
-        return F.log_softmax(x, dim=1)
+
+        x = self.dropout(x)
+        x = self.fc(x)
+        return x
 
 
 class GraphClassifier:
@@ -33,9 +37,9 @@ class GraphClassifier:
         # use masking for loss evaluation
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
         if mode == 'train':
-            loss = F.nll_loss(self.gcn(x, edge_index, edge_attr)[data.train_mask], data.y[data.train_mask])
+            loss = F.cross_entropy(self.gcn(x, edge_index, edge_attr)[data.train_mask], data.y[data.train_mask])
         else:
-            loss = F.nll_loss(self.gcn(x, edge_index, edge_attr)[data.test_mask], data.y[data.test_mask])
+            loss = F.cross_entropy(self.gcn(x, edge_index, edge_attr)[data.test_mask], data.y[data.test_mask])
         return loss
 
     def embed(self, data):
