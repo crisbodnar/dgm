@@ -65,11 +65,12 @@ def color_mnodes_with_labels(mnode_to_nodes, labels, binary=True):
     return np.array(label_color)
 
 
-def color_from_bivariate_data(Z1, Z2, cmap1=plt.cm.cool, cmap2=plt.cm.coolwarm):
+def color_from_bivariate_data(mnode_to_color, cmap1=plt.cm.cool, cmap2=plt.cm.coolwarm):
     """Produces a 2D colormap for visualising the 2D lens functions.
 
     Code adapted from https://stackoverflow.com/questions/49871436/scatterplot-with-continuous-bivariate-color-palette-in-python
     """
+    Z1, Z2 = mnode_to_color[:, 0], mnode_to_color[:, 1]
     # Rescale values to fit into colormap range (0->255)
     Z1_plot = np.array(255 * (Z1 - Z1.min()) / (Z1.max() - Z1.min()), dtype=np.int)
     Z2_plot = np.array(255 * (Z2 - Z2.min()) / (Z2.max() - Z2.min()), dtype=np.int)
@@ -85,7 +86,7 @@ def color_from_bivariate_data(Z1, Z2, cmap1=plt.cm.cool, cmap2=plt.cm.coolwarm):
 def reduce_embedding(embed, reduce_dim, method):
     print('Reducing the embedding...')
     if method == 'tsne':
-        embed = TSNE(n_components=reduce_dim).fit_transform(embed)
+        embed = TSNE(n_components=reduce_dim, n_jobs=-1).fit_transform(embed)
     elif method == 'binary_prob':
         assert embed.shape[1] == 2
         embed = softmax(embed, axis=1)

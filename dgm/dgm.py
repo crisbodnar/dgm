@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 
 from collections import defaultdict, OrderedDict
+from dgm.plotting import color_from_bivariate_data
 
 
 def generate_1d_grid(num_intervals=5, overlap=0.10, vmin=0, vmax=1):
@@ -125,7 +126,7 @@ def generate_2d_pull_back(f, xx, yy):
     return pull_back
 
 
-def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
+def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True, bivariate_color=False):
     """Given a graph and the pull back of the function f it computes the refined pullback and builds the Mapper graph.
 
     Args:
@@ -134,6 +135,7 @@ def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
         eps (float): A filtration value for the edges of SDGM. This is used only if SDGM is True.
         sdgm (bool): Use Structural Deep Graph Mapper (recommended). The refined pull back elements are connected
                      with edges weighted by the number of edges in the original graph between the elements.
+        bivariate_color (bool): Whether to use 1D or 2D colouring.
     Returns:
         mapper_graph (networkx.Graph): The Mapper visualisation graph.
         aux (dict): Auxiliary results containing metadata in the form of a dictionary:
@@ -152,7 +154,7 @@ def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
     # Old node to new node.
     node_to_mnode = defaultdict(set)
     # Edges between clusters.
-    edge_weight = defaultdict(int)
+    edge_weight = defaultdict(float)
 
     for colored_preimages in pull_back:
         color = colored_preimages[0]
@@ -184,7 +186,7 @@ def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
     mapper_graph = nx.Graph()
     mapper_graph.add_nodes_from(np.arange(mnode))
 
-    new_edges = defaultdict(int)
+    new_edges = defaultdict(float)
     if sdgm:
         # Check edges between the connected components.
         for edge in graph.edges:
@@ -206,20 +208,28 @@ def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
     # Add the normalised edges to the graph and the edge_weight dictionary.
     for edge, edgew in new_edges.items():
         # Normalise the weight.
-        norm_weight = (np.abs(edgew)) / (float(maxw) + 0.00001)
+        assert 0 <= edgew
+        norm_weight = edgew / (float(maxw) + 1e-8)
         if norm_weight >= eps or not sdgm:
             mapper_graph.add_edge(edge[0], edge[1], weight=norm_weight)
-            edge_weight[(edge[0], edge[1])] = norm_weight
+            edge_weight[edge] = norm_weight
 
     node_sizes = np.array([len(cc) for _, cc in mnode_to_nodes.items()])
 
+    mnode_to_color = np.array(mnode_to_color)
+    if bivariate_color:
+        mnode_to_color = color_from_bivariate_data(mnode_to_color)
+
     aux = {
         'mnode_to_nodes': mnode_to_nodes,
-        'mnode_to_color': np.array(mnode_to_color),
+        'mnode_to_color': mnode_to_color,
         'edge_weight': edge_weight,
         'node_list': np.arange(mnode),
         'node_sizes': node_sizes,
     }
+
+    print("Mapper graph nodes", mapper_graph.number_of_nodes())
+    print("Mapper graph edges", mapper_graph.number_of_edges())
 
     return mapper_graph, aux
 
@@ -255,7 +265,7 @@ def build_2d_dgm(graph, embed, num_intervals, overlap, eps=0.0, sdgm=True):
     pull_back = generate_2d_pull_back(embed, xx, yy)
 
     # Construct the Mapper graph
-    return construct_dgm_graph(graph, pull_back, eps=eps, sdgm=sdgm)
+    return construct_dgm_graph(graph, pull_back, eps=eps, sdgm=sdgm, bivariate_color=True)
 
 
 def filter_mapper_graph(mg, aux, min_component_size):
@@ -290,7 +300,7 @@ def filter_mapper_graph(mg, aux, min_component_size):
     for mnode in new_node_list:
         new_mnode_to_nodes[mnode] = aux['mnode_to_nodes'][mnode]
 
-    new_edge_weight = defaultdict(int)
+    new_edge_weight = defaultdict(float)
     for edge, edgew in aux['edge_weight'].items():
         if mask[edge[0]] and mask[edge[1]]:
             new_edge_weight[edge] = edgew

@@ -3,10 +3,10 @@ import os
 
 from dgm.dgm import *
 from dgm.plotting import *
-from torch_geometric.utils.convert import to_networkx
-
 from dgm.utils import *
 from dgm.models import GraphClassifier, DGILearner
+
+from torch_geometric.utils.convert import to_networkx
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', help='Dataset to use (spam, cora)', type=str, default='cora')
@@ -24,19 +24,16 @@ parser.add_argument('--min_component_size', help='Minimum connected component si
                     type=int, default=0.0)
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-def train_model(dataset, train_mode, device):
-    dataset = dataset.to(device)
+def train_model(dataset, train_mode, num_classes, device):
     if train_mode == 'supervised':
-        model = GraphClassifier(dataset.num_node_features, 2, device)
+        model = GraphClassifier(dataset.num_node_features, num_classes, device)
     elif train_mode == 'unsupervised':
-        model = DGILearner(dataset.num_node_features, 2, device)
+        model = DGILearner(dataset.num_node_features, 512, device)
     else:
         raise ValueError('Unsupported train mode {}'.format(train_mode))
 
-    for epoch in range(1, 200):
+    train_epochs = 81 if train_mode == 'supervised' else 201
+    for epoch in range(0, train_epochs):
         train_loss = model.train(dataset)
 
         if epoch % 5 == 0:
@@ -52,24 +49,26 @@ def train_model(dataset, train_mode, device):
 
 
 def plot_dgm_graph(args):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     print("Plotting the {} graph".format(args.dataset))
 
-    data = load_dataset(args.dataset).to(device)
+    data, num_classes = load_dataset(args.dataset)
+    data = data.to(device)
     graph = to_networkx(data).to_undirected()
 
     print("Graph nodes", graph.number_of_nodes())
     print("Graph edges", graph.number_of_edges())
 
-    embed_path = "./data/{}_{}.npy".format(args.dataset, args.train_mode)
+    embed_path = "./data/{}_{}_{}.npy".format(args.dataset, args.train_mode, args.reduce_method)
     if os.path.isfile(embed_path):
         print('Using existing embedding')
         embed = np.load(embed_path)
     else:
         print('No embedding found. Training a new model...')
-        embed = train_model(data, args.train_mode, device)
+        embed = train_model(data, args.train_mode, num_classes, device)
+        embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
         np.save(embed_path, embed)
-
-    embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
 
     print('Creating visualisation...')
     out_graph, res = build_dgm_graph(graph, embed, num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
@@ -79,8 +78,8 @@ def plot_dgm_graph(args):
     plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
                node_list=res['node_list'], name=name_from_args(args, False), colorbar=binary)
 
-    print("fMG nodes", out_graph.number_of_nodes())
-    print("fMG edges", out_graph.number_of_edges())
+    print("Filtered Mapper Graph nodes", out_graph.number_of_nodes())
+    print("Filtered Mapper Graph edges", out_graph.number_of_edges())
 
     labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary)
     plot_graph(out_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
