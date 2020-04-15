@@ -15,11 +15,19 @@ def load_dataset(dataset):
     elif dataset == 'citeseer':
         dataset = Planetoid(root='/tmp/CiteSeer', name='CiteSeer')
     elif dataset == 'spam':
-        return load_spam_dataset(), 2
+        return load_spam_dataset()
     else:
         raise ValueError('Unsupported dataset {}'.format(dataset))
 
     return dataset[0]
+
+
+def name_from_args(args, labeled):
+    return "{}_{}_{}_{}".format(
+        args.dataset,
+        "sdgm" if args.sdgm else "dgm",
+        args.train_mode,
+        "labeled" if labeled else "pred")
 
 
 def load_spam_dataset():

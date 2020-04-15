@@ -211,11 +211,14 @@ def construct_dgm_graph(graph, pull_back, eps=0.0, sdgm=True):
             mapper_graph.add_edge(edge[0], edge[1], weight=norm_weight)
             edge_weight[(edge[0], edge[1])] = norm_weight
 
+    node_sizes = np.array([len(cc) for _, cc in mnode_to_nodes.items()])
+
     aux = {
         'mnode_to_nodes': mnode_to_nodes,
         'mnode_to_color': np.array(mnode_to_color),
         'edge_weight': edge_weight,
         'node_list': np.arange(mnode),
+        'node_sizes': node_sizes,
     }
 
     return mapper_graph, aux
@@ -281,6 +284,7 @@ def filter_mapper_graph(mg, aux, min_component_size):
 
     new_mnode_to_color = aux['mnode_to_color'][mask]
     new_node_list = aux['node_list'][mask]
+    new_node_sizes = aux['node_sizes'][mask]
 
     new_mnode_to_nodes = OrderedDict()
     for mnode in new_node_list:
@@ -296,6 +300,7 @@ def filter_mapper_graph(mg, aux, min_component_size):
         'mnode_to_color': new_mnode_to_color,
         'edge_weight': new_edge_weight,
         'node_list': new_node_list,
+        'node_sizes': new_node_sizes,
     }
 
     return fmg, filtered_aux

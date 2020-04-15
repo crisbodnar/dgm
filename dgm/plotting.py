@@ -6,6 +6,7 @@ from matplotlib import cm
 
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+from scipy.special import softmax
 
 
 def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12, 10), colorbar=True, name='plot'):
@@ -15,6 +16,8 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
         cmap = cm.coolwarm
         cmap = cm.get_cmap(cmap, 100)
         plt.set_cmap(cmap)
+    else:
+        plt.set_cmap(cm.Accent)
 
     # Set figures size
     plt.figure(figsize=figsize)
@@ -79,14 +82,15 @@ def color_from_bivariate_data(Z1, Z2, cmap1=plt.cm.cool, cmap2=plt.cm.coolwarm):
     return Z_color
 
 
-def reduce_embedding(embed, components, method):
+def reduce_embedding(embed, reduce_dim, method):
     print('Reducing the embedding...')
-
     if method == 'tsne':
-        embed = TSNE(n_components=components).fit_transform(embed)
+        embed = TSNE(n_components=reduce_dim).fit_transform(embed)
+    elif method == 'binary_prob':
+        assert embed.shape[1] == 2
+        embed = softmax(embed, axis=1)
+        embed = embed[:, 1][:, None]
     else:
         raise ValueError()
 
-    embed -= np.min(embed, axis=0)
-    embed /= np.max(embed, axis=0)
     return embed
