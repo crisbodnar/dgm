@@ -22,6 +22,7 @@ parser.add_argument('--overlap', help='Overlap percentage between consecutive in
 parser.add_argument('--eps', help='Edge filtration value for SDGM', type=float, default=0.0)
 parser.add_argument('--min_component_size', help='Minimum connected component size to be included in the visualisation',
                     type=int, default=0.0)
+parser.add_argument('--dir', help='Directory inside plots where to save the results', default='')
 
 
 def train_model(dataset, train_mode, num_classes, device):
@@ -60,15 +61,16 @@ def plot_dgm_graph(args):
     print("Graph nodes", graph.number_of_nodes())
     print("Graph edges", graph.number_of_edges())
 
-    embed_path = "./data/{}_{}_{}.npy".format(args.dataset, args.train_mode, args.reduce_method)
+    embed_path = "./data/{}_{}.npy".format(args.dataset, args.train_mode)
     if os.path.isfile(embed_path):
         print('Using existing embedding')
         embed = np.load(embed_path)
     else:
         print('No embedding found. Training a new model...')
         embed = train_model(data, args.train_mode, num_classes, device)
-        embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
         np.save(embed_path, embed)
+
+    embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
 
     print('Creating visualisation...')
     out_graph, res = build_dgm_graph(graph, embed, num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
@@ -76,14 +78,14 @@ def plot_dgm_graph(args):
 
     binary = args.reduce_method == 'binary_prob'
     plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=name_from_args(args, False), colorbar=binary)
+               node_list=res['node_list'], name=name_from_args(args, False), save_dir=args.dir, colorbar=binary)
 
     print("Filtered Mapper Graph nodes", out_graph.number_of_nodes())
     print("Filtered Mapper Graph edges", out_graph.number_of_edges())
 
     labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary)
     plot_graph(out_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=name_from_args(args, True), colorbar=binary)
+               node_list=res['node_list'], name=name_from_args(args, True), save_dir=args.dir, colorbar=binary)
 
 
 if __name__ == "__main__":

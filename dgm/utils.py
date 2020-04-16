@@ -1,4 +1,3 @@
-import networkx as nx
 import numpy as np
 import torch
 import random
@@ -27,10 +26,11 @@ def load_dataset(dataset):
 
 
 def name_from_args(args, labeled):
-    return "{}_{}_{}_{}".format(
+    return "{}_{}_{}_{}_{}".format(
         args.dataset,
         "sdgm" if args.sdgm else "dgm",
         args.train_mode,
+        args.reduce_method,
         "labeled" if labeled else "pred")
 
 
@@ -91,4 +91,4 @@ def load_spam_dataset():
     data.test_mask = torch.zeros(data.num_nodes, dtype=torch.bool)  # test on 20 % nodes
     data.test_mask[- int(0.2 * data.num_nodes):] = 1
 
-    return data
+    return [data]
