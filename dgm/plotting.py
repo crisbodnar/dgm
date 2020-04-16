@@ -1,15 +1,18 @@
 import numpy as np
+import umap
+import os
 import networkx as nx
 import matplotlib.pyplot as plt
 
 from matplotlib import cm
 
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
+from sklearn.manifold import TSNE, Isomap
 from scipy.special import softmax
 
 
-def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12, 10), colorbar=True, name='plot'):
+def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12, 10), colorbar=True,
+               save_dir='', name='plot'):
     """Example function for plotting the Mapper graph using networkx."""
     # Set color map
     if colorbar:
@@ -42,7 +45,12 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
         sm._A = []
         plt.colorbar(sm)
 
-    plt.savefig('plots/{}.png'.format(name), dgi=300)
+    dir_path = os.path.join('plots/', save_dir, "")
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    file_path = os.path.join(dir_path, "{}.png".format(name))
+    plt.savefig(file_path, dgi=300)
 
 
 def color_mnodes_with_labels(mnode_to_nodes, labels, binary=True):
@@ -87,6 +95,12 @@ def reduce_embedding(embed, reduce_dim, method):
     print('Reducing the embedding...')
     if method == 'tsne':
         embed = TSNE(n_components=reduce_dim, n_jobs=-1).fit_transform(embed)
+    elif method == 'isomap':
+        embed = Isomap(n_components=reduce_dim, n_jobs=-1).fit_transform(embed)
+    elif method == 'pca':
+        embed = PCA(n_components=reduce_dim).fit_transform(embed)
+    elif method == 'umap':
+        embed = umap.UMAP(n_components=reduce_dim).fit_transform(embed)
     elif method == 'binary_prob':
         assert embed.shape[1] == 2
         embed = softmax(embed, axis=1)
