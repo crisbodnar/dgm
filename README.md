@@ -34,7 +34,6 @@ from dgm.dgm import DGM
 
 dgm = DGM(num_intervals=10, overlap=0.1)
 out_graph, res = dgm.fit_transform(graph, node_embeddings)
-
 ```
 
 An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a 
