@@ -35,8 +35,8 @@ def name_from_args(args, labeled):
 
 
 def load_spam_dataset():
-    # TODO: Add code source
-    """Code adapted from: """
+    """Code for the spam dataset from:
+    https://colab.research.google.com/github/zaidalyafeai/Notebooks/blob/master/Deep_GCN_Spam.ipynb"""
     labels = []
     N = 1000
     nodes = range(0, N)
