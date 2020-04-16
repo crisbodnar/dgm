@@ -6,7 +6,7 @@ from dgm.plotting import color_from_bivariate_data
 
 
 class DGM:
-    def __init__(self, num_intervals, overlap, eps=0.0, min_component_size=0, sdgm=True):
+    def __init__(self, num_intervals, overlap, eps=0.05, min_component_size=15, sdgm=True):
         """Initialises DGM (https://arxiv.org/abs/2002.03864) or SDGM (Recommended - Appendix B).
 
         Args:
