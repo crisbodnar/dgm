@@ -92,7 +92,7 @@ def color_from_bivariate_data(mnode_to_color, cmap1=plt.cm.cool, cmap2=plt.cm.co
 
 
 def reduce_embedding(embed, reduce_dim, method):
-    print('Reducing the embedding...')
+    print('Reducing the embedding dimension using {}...'.format(method))
     if method == 'tsne':
         embed = TSNE(n_components=reduce_dim, n_jobs=-1).fit_transform(embed)
     elif method == 'isomap':

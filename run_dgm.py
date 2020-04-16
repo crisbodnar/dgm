@@ -1,7 +1,6 @@
 import argparse
-import os
 
-from dgm.dgm import *
+from dgm.dgm import DGM
 from dgm.plotting import *
 from dgm.utils import *
 from dgm.models import GraphClassifier, DGILearner
@@ -10,7 +9,7 @@ from torch_geometric.utils.convert import to_networkx
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', help='Dataset to use (spam, cora)', type=str, default='cora')
-parser.add_argument('--sdgm', help='Whether to use SDGM or not', default=True)
+parser.add_argument('--sdgm', help='Whether to use SDGM or not', action="store_true")
 parser.add_argument('--train_mode', help='Supervised or unsupervised training', default='supervised')
 parser.add_argument('--reduce_method', help='Method to use for dimensionality reduction', default='tsne')
 parser.add_argument('--reduce_dim', help='The final embedding dimension after dimensionality reduction', type=int,
@@ -73,8 +72,8 @@ def plot_dgm_graph(args):
     embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
 
     print('Creating visualisation...')
-    out_graph, res = build_dgm_graph(graph, embed, num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
-                                     min_component_size=args.min_component_size, sdgm=args.sdgm)
+    out_graph, res = DGM(num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
+                         min_component_size=args.min_component_size, sdgm=args.sdgm).fit_transform(graph, embed)
 
     binary = args.reduce_method == 'binary_prob'
     plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
