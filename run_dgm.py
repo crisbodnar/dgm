@@ -1,154 +1,94 @@
-import numpy as np
+import argparse
 
-from dgm.dgm import *
+from dgm.dgm import DGM
 from dgm.plotting import *
-from torch_geometric.datasets import Planetoid
+from dgm.utils import *
+from dgm.models import GraphClassifier, DGILearner
+
 from torch_geometric.utils.convert import to_networkx
 
-
-def plot_sdgm_spam_binary():
-    print("Plotting SDGM Spam graph")
-
-    # Load the GCN predicted probabilties on the spammer dataset.
-    # These are loaded directly from a file here to make running the code easier.
-    spam_prob = np.load('./data/spam_prob.npy')
-    spam_prob = spam_prob[:, 1][:, None]
-
-    # Load the spam graph in networkx.
-    spam_graph = nx.read_gpickle('./data/spam_graph.gpickle')
-
-    print("G nodes", spam_graph.number_of_nodes())
-    print("G edges", spam_graph.number_of_edges())
-
-    spam_sdgm, res = build_dgm_graph(spam_graph, spam_prob, num_intervals=20, overlap=0.0, eps=0.01,
-                                     min_component_size=4, sdgm=True)
-
-    print("fMG nodes", spam_sdgm.number_of_nodes())
-    print("fMG edges", spam_sdgm.number_of_edges())
-
-    # Plot the SDGM graph
-    node_size = np.array([len(cc) for _, cc in res['mnode_to_nodes'].items()])
-    plot_graph(spam_sdgm, node_color=res['mnode_to_color'], node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='sdgm_spam_prob')
-
-    # Plot the SDGM graph with true labels
-    labels = np.load('./data/spam_label.npy')
-    labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], labels, binary=True)
-
-    plot_graph(spam_sdgm, node_color=labeled_colors, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='sdgm_spam_label', colorbar=True)
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', help='Dataset to use (spam, cora)', type=str, default='cora')
+parser.add_argument('--sdgm', help='Whether to use SDGM or not', action="store_true")
+parser.add_argument('--train_mode', help='Supervised or unsupervised training', default='supervised')
+parser.add_argument('--reduce_method', help='Method to use for dimensionality reduction', default='tsne')
+parser.add_argument('--reduce_dim', help='The final embedding dimension after dimensionality reduction', type=int,
+                    default=2)
+parser.add_argument('--intervals', help='Number of intervals to use across each axis for the grid', type=int,
+                    required=True)
+parser.add_argument('--overlap', help='Overlap percentage between consecutive intervals on each axis', type=float,
+                    required=True)
+parser.add_argument('--eps', help='Edge filtration value for SDGM', type=float, default=0.0)
+parser.add_argument('--min_component_size', help='Minimum connected component size to be included in the visualisation',
+                    type=int, default=0.0)
+parser.add_argument('--dir', help='Directory inside plots where to save the results', default='')
 
 
-def plot_sdgm_cora_dgi():
-    print("Plotting SDGM Cora graph")
+def train_model(dataset, train_mode, num_classes, device):
+    if train_mode == 'supervised':
+        model = GraphClassifier(dataset.num_node_features, num_classes, device)
+    elif train_mode == 'unsupervised':
+        model = DGILearner(dataset.num_node_features, 512, device)
+    else:
+        raise ValueError('Unsupported train mode {}'.format(train_mode))
 
-    # Load the cora dataset
-    data = Planetoid(root='/tmp/Cora', name='Cora')[0]
+    train_epochs = 81 if train_mode == 'supervised' else 201
+    for epoch in range(0, train_epochs):
+        train_loss = model.train(dataset)
 
-    # Load the DGI + t-SNE embeddings
-    embed = np.load('./data/cora_dgi_tsne.npy')
+        if epoch % 5 == 0:
+            if train_mode == 'unsupervised':
+                test_loss = model.test(dataset)
+                log = 'Epoch: {:03d}, train_loss: {:.3f}, test_loss:{:.3f}'
+                print(log.format(epoch, train_loss, test_loss))
+            else:
+                log = 'Epoch: {:03d}, train_loss: {:.3f}, test_loss:{:.3f}, train_acc: {:.2f}, test_acc: {:.2f}'
+                print(log.format(epoch, train_loss, *model.test(dataset)))
 
-    # Load the Cora graph
-    cora_graph = to_networkx(data).to_undirected()
-
-    print("G nodes", cora_graph.number_of_nodes())
-    print("G edges", cora_graph.number_of_edges())
-
-    cora_sdgm, res = build_dgm_graph(cora_graph, embed, num_intervals=40, overlap=0.0, eps=0.07,
-                                     min_component_size=20, sdgm=True)
-
-    node_color = color_from_bivariate_data(res['mnode_to_color'][:, 0], res['mnode_to_color'][:, 1])
-    node_size = np.array([len(cc) for _, cc in res['mnode_to_nodes'].items()])
-    plot_graph(cora_sdgm, node_color=node_color, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='sdgm_cora_dgi_embed', colorbar=False)
-
-    print("fMG nodes", cora_sdgm.number_of_nodes())
-    print("fMG edges", cora_sdgm.number_of_edges())
-
-    labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=False)
-    plt.set_cmap(cm.Accent)
-    plot_graph(cora_sdgm, node_color=labeled_colors, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='sdgm_cora_dgi_embed_labeled', colorbar=False)
+    return model.embed(dataset).detach().cpu().numpy()
 
 
-def plot_dgm_spam_binary():
-    print("Plotting DGM Spam graph")
+def plot_dgm_graph(args):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Load the GCN predicted probabilties on the spammer dataset.
-    # These are loaded directly from a file here to make running the code easier.
-    spam_prob = np.load('./data/spam_prob.npy')
-    spam_prob = spam_prob[:, 1][:, None]
+    print("Plotting the {} graph".format(args.dataset))
 
-    # Load the spam graph in networkx.
-    spam_graph = nx.read_gpickle('./data/spam_graph.gpickle')
+    data, num_classes = load_dataset(args.dataset)
+    data = data.to(device)
+    graph = to_networkx(data).to_undirected()
 
-    print("G nodes", spam_graph.number_of_nodes())
-    print("G edges", spam_graph.number_of_edges())
+    print("Graph nodes", graph.number_of_nodes())
+    print("Graph edges", graph.number_of_edges())
 
-    spam_sdgm, res = build_dgm_graph(spam_graph, spam_prob, num_intervals=10, overlap=0.2, eps=0.00,
-                                     min_component_size=60, sdgm=False)
+    embed_path = "./data/{}_{}.npy".format(args.dataset, args.train_mode)
+    if os.path.isfile(embed_path):
+        print('Using existing embedding')
+        embed = np.load(embed_path)
+    else:
+        print('No embedding found. Training a new model...')
+        embed = train_model(data, args.train_mode, num_classes, device)
+        np.save(embed_path, embed)
 
-    # Plot the SDGM graph
-    node_size = np.array([len(cc) for _, cc in res['mnode_to_nodes'].items()])
-    plot_graph(spam_sdgm, node_color=res['mnode_to_color'], node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='dgm_spam_prob')
+    embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
 
-    # Plot the SDGM graph with true labels
-    labels = np.load('./data/spam_label.npy')
-    labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], labels, binary=True)
+    print('Creating visualisation...')
+    out_graph, res = DGM(num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
+                         min_component_size=args.min_component_size, sdgm=args.sdgm).fit_transform(graph, embed)
 
-    print("fMG nodes", spam_sdgm.number_of_nodes())
-    print("fMG edges", spam_sdgm.number_of_edges())
+    binary = args.reduce_method == 'binary_prob'
+    plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
+               node_list=res['node_list'], name=name_from_args(args, False), save_dir=args.dir, colorbar=binary)
 
-    plot_graph(spam_sdgm, node_color=labeled_colors, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='dgm_spam_label', colorbar=True)
+    print("Filtered Mapper Graph nodes", out_graph.number_of_nodes())
+    print("Filtered Mapper Graph edges", out_graph.number_of_edges())
 
-
-def plot_dgm_cora_dgi():
-    print("Plotting DGM Cora graph")
-
-    # Load the cora dataset
-    data = Planetoid(root='/tmp/Cora', name='Cora')[0]
-
-    # Load the DGI + t-SNE embeddings
-    embed = np.load('./data/cora_dgi_tsne.npy')
-
-    # Load the Cora graph
-    cora_graph = to_networkx(data).to_undirected()
-
-    print("G nodes", cora_graph.number_of_nodes())
-    print("G edges", cora_graph.number_of_edges())
-
-    cora_sdgm, res = build_dgm_graph(cora_graph, embed, num_intervals=10, overlap=0.2, eps=0.00,
-                                     min_component_size=20, sdgm=False)
-
-    node_color = color_from_bivariate_data(res['mnode_to_color'][:, 0], res['mnode_to_color'][:, 1])
-    node_size = np.array([len(cc) for _, cc in res['mnode_to_nodes'].items()])
-    plot_graph(cora_sdgm, node_color=node_color, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='dgm_cora_dgi_embed', colorbar=False)
-
-    print("fMG nodes", cora_sdgm.number_of_nodes())
-    print("fMG edges", cora_sdgm.number_of_edges())
-
-    labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=False)
-    plt.set_cmap(cm.Accent)
-    plot_graph(cora_sdgm, node_color=labeled_colors, node_size=node_size, edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name='dgm_cora_dgi_embed_labeled', colorbar=False)
-
-
-def main():
-    # Plots the spammer graph with Structural Deep Graph Mapper using a binary GCN classifier as lens.
-    plot_sdgm_spam_binary()
-
-    # Plots Structural Deep Graph Mapper with (unsupervised) DGI lens for the Cora graph.
-    plot_sdgm_cora_dgi()
-
-    # Plots the spammer graph with Deep Graph Mapper using a binary GCN classifier as lens.
-    plot_dgm_spam_binary()
-
-    # Plots Deep Graph Mapper with (unsupervised) DGI lens for the Cora graph.
-    plot_dgm_cora_dgi()
+    labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary)
+    plot_graph(out_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
+               node_list=res['node_list'], name=name_from_args(args, True), save_dir=args.dir, colorbar=binary)
 
 
 if __name__ == "__main__":
-    main()
+    random.seed(444)
+    np.random.seed(444)
+    torch.manual_seed(444)
+    plot_dgm_graph(parser.parse_args())

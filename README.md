@@ -23,13 +23,24 @@ $ pip3 install -r requirements.txt
 ## Visualisations
 
 Example visualisation for the synthetic spammer graph and Cora are provided and can be run 
-with ```python run_dgm.py``` from the root directory of the project. The visualisations are saved 
+with ```./plot_all.sh``` from the root directory of the project. The visualisations are saved 
 in the ```plots``` directory. For most purposes, we recommend to use Structural Deep Graph Mapper (SDGM),
 described in Appendix B of the paper. 
 
-An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a different class. 
+DGM can be used as follows
 
-![Structural Deep Graph Mapper Cora](plots/sdgm_cora_dgi_embed_labeled.png)
+```
+from dgm.dgm import DGM
+
+dgm = DGM(num_intervals=10, overlap=0.1)
+out_graph, res = dgm.fit_transform(graph, node_embeddings)
+
+```
+
+An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a 
+different class in the citation network. 
+
+![Structural Deep Graph Mapper Cora](figures/sdgm_cora_dgi_embed_labeled.png)
 
 
 ## Running pooling experiments
