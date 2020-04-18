@@ -39,7 +39,7 @@ out_graph, res = dgm.fit_transform(graph, node_embeddings)
 An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a 
 different class in the citation network. 
 
-![Structural Deep Graph Mapper Cora](figures/sdgm_cora_dgi_embed_labeled.png)
+![Structural Deep Graph Mapper Cora](figures/cora_sdgm_unsupervised_tsne_labeled.png)
 
 
 ## Running pooling experiments

@@ -96,7 +96,7 @@ class DGM:
 
         for interv in intervals:
             # Compute f^-1(U), where U is an interval
-            preimage = nodes[np.logical_and(interv[0] < f, f < interv[1])]
+            preimage = nodes[np.logical_and(interv[0] <= f, f <= interv[1])]
 
             # Skip empty preimages
             if not len(preimage):
@@ -177,8 +177,8 @@ class DGM:
                 continue
 
             # Build the subgraph of the preimage and determine the connected components.
-            G_pre = graph.subgraph(pre_img)
-            connected_components = list(nx.connected_components(G_pre))
+            subgraph = graph.subgraph(pre_img)
+            connected_components = nx.connected_components(subgraph)
 
             for cc in connected_components:
                 # Make each connected component a node and assign its color.
@@ -336,7 +336,8 @@ class DGM:
             aux (dict): The graph metadata to be used for visualisation.
         """
         if len(f.shape) != 2 or f.shape[1] > 2:
-            raise ValueError('SDGM supports only 1D and 2D dimensional parametrization spaces.')
+            raise ValueError('SDGM supports only 1D and 2D dimensional parametrization spaces but '
+                             'embedding has shape {}'.format(f.shape))
 
         f = self.normalise_embed(f)
 

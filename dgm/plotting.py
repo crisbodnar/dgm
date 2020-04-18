@@ -3,16 +3,17 @@ import umap
 import os
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 
 from matplotlib import cm
-
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE, Isomap
 from scipy.special import softmax
 
 
-def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12, 10), colorbar=True,
-               save_dir='', name='plot'):
+def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(13, 11), colorbar=True,
+               save_dir='', name='plot', legend_dict=None):
     """Example function for plotting the Mapper graph using networkx."""
     # Set color map
     if colorbar:
@@ -20,10 +21,19 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
         cmap = cm.get_cmap(cmap, 100)
         plt.set_cmap(cmap)
     else:
-        plt.set_cmap(cm.Accent)
+        cmap = cm.Dark2
+        plt.set_cmap(cmap)
 
     # Set figures size
-    plt.figure(figsize=figsize)
+    f = plt.figure(figsize=figsize)
+    ax = f.add_subplot(1, 1, 1)
+
+    if legend_dict:
+        cNorm = colors.Normalize(vmin=0, vmax=np.max(node_color))
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+
+        for label in legend_dict:
+            ax.plot([0], [0], color=scalarMap.to_rgba(label), label=legend_dict[label])
 
     # Compute edge width
     edges = graph.edges()
@@ -38,7 +48,7 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
     # Draw the graph
     pos = nx.nx_pydot.graphviz_layout(graph)
     nx.draw(graph, pos=pos, node_color=node_color, width=width, node_size=node_size,
-            node_list=node_list)
+            node_list=node_list, ax=ax, cmap=cmap)
 
     if colorbar:
         sm = cm.ScalarMappable(cmap=cmap)
@@ -49,6 +59,14 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+    plt.axis('off')
+    f.set_facecolor('w')
+
+    if legend_dict:
+        plt.legend()
+
+    f.tight_layout()
+
     file_path = os.path.join(dir_path, "{}.png".format(name))
     plt.savefig(file_path, dgi=300)
 
@@ -56,6 +74,7 @@ def plot_graph(graph, node_color, node_size, edge_weight, node_list, figsize=(12
 def color_mnodes_with_labels(mnode_to_nodes, labels, binary=True):
     """Colors the nodes of the Mapper graph using the true labels of the nodes."""
     label_color = []
+
     for mnode, cc in mnode_to_nodes.items():
         nodes = np.array(list(cc))
         cc_labels = labels[nodes]
@@ -105,7 +124,7 @@ def reduce_embedding(embed, reduce_dim, method):
         assert embed.shape[1] == 2
         embed = softmax(embed, axis=1)
         embed = embed[:, 1][:, None]
-    else:
+    elif method != 'none':
         raise ValueError()
 
     return embed

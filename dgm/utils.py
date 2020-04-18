@@ -6,23 +6,57 @@ from torch_geometric.data import Data
 from torch_geometric.datasets import Planetoid
 
 
+def load_cora_legend_dict():
+    return {
+        0: 'Theory',
+        1: 'Reinforcement Learning',
+        2: 'Genetic Algorithms',
+        3: 'Neural Networks',
+        4: 'Probabilistic Methods',
+        5: 'Case Based',
+        6: 'Rule Learning',
+    }
+
+
+def load_citeseer_legend_dict():
+    return {
+        0: 'AI',
+        1: 'ML',
+        2: 'IR',
+        3: 'DB',
+        4: 'Agents',
+        5: 'HCI',
+    }
+
+
+def load_spam_legend_dict():
+    return {
+        0: 'Non-Spammer',
+        1: 'Spammer',
+    }
+
+
 def load_dataset(dataset):
+    legend_dict = None
     if dataset == 'cora':
         dataset = Planetoid(root='/tmp/Cora', name='Cora')
         num_classes = dataset.num_classes
+        legend_dict = load_cora_legend_dict()
     elif dataset == 'pubmed':
         dataset = Planetoid(root='/tmp/PubMed', name='PubMed')
         num_classes = dataset.num_classes
     elif dataset == 'citeseer':
         dataset = Planetoid(root='/tmp/CiteSeer', name='CiteSeer')
         num_classes = dataset.num_classes
+        legend_dict = load_citeseer_legend_dict()
     elif dataset == 'spam':
         dataset = load_spam_dataset()
         num_classes = 2
+        legend_dict = load_spam_legend_dict()
     else:
         raise ValueError('Unsupported dataset {}'.format(dataset))
 
-    return dataset[0], num_classes
+    return dataset[0], num_classes, legend_dict
 
 
 def name_from_args(args, labeled):

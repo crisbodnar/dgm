@@ -2,7 +2,7 @@
 
 # ================================================= SDGM ===============================================================
 
-## Plot the SDGM graphs with embeddings computed by a supervised GCN network
+# Plot the SDGM graphs with embeddings computed by a supervised GCN network
 python -u run_dgm.py --dataset=spam --reduce_method=binary_prob --intervals=20 --overlap=0 --eps=0.01 \
                      --min_component_size=4 --sdgm --dir=sdgm_supervised
 python -u run_dgm.py --dataset=cora --reduce_method=tsne --intervals=10 --overlap=0 --eps=0.10 \
@@ -65,3 +65,17 @@ python -u run_dgm.py --dataset=cora --train_mode=unsupervised --reduce_method=ts
 
 python -u run_dgm.py --dataset=cora --train_mode=unsupervised --reduce_method=tsne --intervals=9 \
                      --overlap=0.2 --min_component_size=15 --reduce_method=umap --dir=dgm_reduce_ablation
+
+# ========================================== SDGM with true labels ===================================================
+
+python -u run_dgm.py --dataset=spam --reduce_method=none --intervals=20 \
+                     --overlap=0 --eps=0.00 --min_component_size=0 --sdgm --dir=sdgm_true_labels --true_labels
+
+python -u run_dgm.py --dataset=cora --reduce_method=none --intervals=20 \
+                     --overlap=0 --eps=0.00 --min_component_size=5 --sdgm --dir=sdgm_true_labels --true_labels
+
+python -u run_dgm.py --dataset=pubmed --reduce_method=none --intervals=20 \
+                     --overlap=0 --eps=0.00 --min_component_size=5 --sdgm --dir=sdgm_true_labels --true_labels
+
+python -u run_dgm.py --dataset=citeseer --reduce_method=tsne --intervals=20 \
+                     --overlap=0 --eps=0.00 --min_component_size=5 --sdgm --dir=sdgm_true_labels --true_labels
