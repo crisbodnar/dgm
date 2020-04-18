@@ -22,6 +22,7 @@ parser.add_argument('--eps', help='Edge filtration value for SDGM', type=float, 
 parser.add_argument('--min_component_size', help='Minimum connected component size to be included in the visualisation',
                     type=int, default=0.0)
 parser.add_argument('--dir', help='Directory inside plots where to save the results', default='')
+parser.add_argument('--true_labels', help='Uses the true labels to obtain a parametrisation.', action='store_true')
 
 
 def train_model(dataset, train_mode, num_classes, device):
@@ -53,38 +54,44 @@ def plot_dgm_graph(args):
 
     print("Plotting the {} graph".format(args.dataset))
 
-    data, num_classes = load_dataset(args.dataset)
+    data, num_classes, legend_dict = load_dataset(args.dataset)
     data = data.to(device)
     graph = to_networkx(data).to_undirected()
 
     print("Graph nodes", graph.number_of_nodes())
     print("Graph edges", graph.number_of_edges())
 
-    embed_path = "./data/{}_{}.npy".format(args.dataset, args.train_mode)
-    if os.path.isfile(embed_path):
-        print('Using existing embedding')
-        embed = np.load(embed_path)
+    if args.true_labels:
+        # The visualisation is driven by the labels.
+        embed = data.y.cpu().numpy().astype(np.float32)[:, None]
     else:
-        print('No embedding found. Training a new model...')
-        embed = train_model(data, args.train_mode, num_classes, device)
-        np.save(embed_path, embed)
+        embed_path = "./data/{}_{}.npy".format(args.dataset, args.train_mode)
+        if os.path.isfile(embed_path):
+            print('Using existing embedding')
+            embed = np.load(embed_path)
+        else:
+            print('No embedding found. Training a new model...')
+            embed = train_model(data, args.train_mode, num_classes, device)
+            np.save(embed_path, embed)
 
-    embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
+        embed = reduce_embedding(embed, reduce_dim=args.reduce_dim, method=args.reduce_method)
 
     print('Creating visualisation...')
     out_graph, res = DGM(num_intervals=args.intervals, overlap=args.overlap, eps=args.eps,
                          min_component_size=args.min_component_size, sdgm=args.sdgm).fit_transform(graph, embed)
 
     binary = args.reduce_method == 'binary_prob'
-    plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=name_from_args(args, False), save_dir=args.dir, colorbar=binary)
+    if not args.true_labels:
+        plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
+                   node_list=res['node_list'], name=name_from_args(args, False), save_dir=args.dir, colorbar=binary)
 
     print("Filtered Mapper Graph nodes", out_graph.number_of_nodes())
     print("Filtered Mapper Graph edges", out_graph.number_of_edges())
 
     labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary)
     plot_graph(out_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=name_from_args(args, True), save_dir=args.dir, colorbar=binary)
+               node_list=res['node_list'], name=name_from_args(args, True), save_dir=args.dir, colorbar=binary,
+               legend_dict=legend_dict)
 
 
 if __name__ == "__main__":
