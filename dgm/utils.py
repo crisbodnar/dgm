@@ -59,7 +59,16 @@ def load_dataset(dataset):
     return dataset[0], num_classes, legend_dict
 
 
-def name_from_args(args, labeled):
+def gtl_name_from_args(args, labeled):
+    return "{}_{}_{}_{}_{}".format(
+        args.dataset,
+        "sdgm" if args.sdgm else "dgm",
+        args.train_mode,
+        args.lens,
+        "labeled" if labeled else "pred")
+
+
+def dgm_name_from_args(args, labeled):
     return "{}_{}_{}_{}_{}".format(
         args.dataset,
         "sdgm" if args.sdgm else "dgm",
