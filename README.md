@@ -51,6 +51,11 @@ You can reproduce our results by running the `run.sh` script with the following 
 
 For example, the command `./run.sh 0 PROTEINS mpr 0` will perform 10-fold cross-validation for our proposed MPR pooling model on GPU 0 for the Proteins dataset.
 
+## Contributing
+
+We are committed to making DGM a complete graph visualisation library based on Mapper. We will soon make
+our roadmap publicly available and keep adding features to it. If you want to contribute, please contact
+us. Our email addresses can be found in the paper. 
 
 ## Citation
 Please cite us if you use DGM and/or MPR in your work:
