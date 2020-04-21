@@ -252,9 +252,6 @@ class DGM:
         embed -= np.min(embed, axis=0, keepdims=True)
         embed /= (np.max(embed, axis=0, keepdims=True) + 0.000001)
 
-        plt.hist(embed, bins=50)
-        plt.show()
-
         return embed
 
     def build_1d_dgm(self, graph, embed):

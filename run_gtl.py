@@ -61,7 +61,7 @@ def plot_mapper_graph(args):
     elif args.lens == 'density':
         d_path = "./data/{}_distance_matrix.npy".format(args.dataset)
         if os.path.isfile(d_path):
-            print('Using existing embedding')
+            print('Using existing distance matrix')
             d = np.load(d_path)
         else:
             d = get_distance_matrix(graph, args.cutoff)
