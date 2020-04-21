@@ -78,7 +78,7 @@ def plot_mapper_graph(args):
                             min_component_size=args.min_component_size, sdgm=args.sdgm).fit_transform(graph, embed)
 
     plot_graph(mapper_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=dgm_name_from_args(args, False), save_dir=args.dir, colorbar=colorbar)
+               node_list=res['node_list'], name=gtl_name_from_args(args, False), save_dir=args.dir, colorbar=colorbar)
 
     print("Filtered Mapper Graph nodes", mapper_graph.number_of_nodes())
     print("Filtered Mapper Graph edges", mapper_graph.number_of_edges())
@@ -87,7 +87,7 @@ def plot_mapper_graph(args):
     binary_labels = (args.reduce_method == 'binary_prob')
     labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary_labels)
     plot_graph(mapper_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=dgm_name_from_args(args, True), save_dir=args.dir, colorbar=binary_labels,
+               node_list=res['node_list'], name=gtl_name_from_args(args, True), save_dir=args.dir, colorbar=binary_labels,
                legend_dict=legend_dict)
 
 
