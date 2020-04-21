@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 
 from collections import defaultdict, OrderedDict
 from dgm.plotting import color_from_bivariate_data
@@ -250,6 +251,7 @@ class DGM:
         """Brings each embedding dimension in [0, 1]."""
         embed -= np.min(embed, axis=0, keepdims=True)
         embed /= (np.max(embed, axis=0, keepdims=True) + 0.000001)
+
         return embed
 
     def build_1d_dgm(self, graph, embed):

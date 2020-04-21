@@ -29,6 +29,14 @@ def load_citeseer_legend_dict():
     }
 
 
+def load_pubmed_legend_dict():
+    return {
+        0: 'Diabetes Mellitus, Experimental',
+        1: 'Diabetes Mellitus Type 2',
+        2: 'Diabetes Mellitus Type 1',
+    }
+
+
 def load_spam_legend_dict():
     return {
         0: 'Non-Spammer',
@@ -37,7 +45,6 @@ def load_spam_legend_dict():
 
 
 def load_dataset(dataset):
-    legend_dict = None
     if dataset == 'cora':
         dataset = Planetoid(root='/tmp/Cora', name='Cora')
         num_classes = dataset.num_classes
@@ -45,6 +52,7 @@ def load_dataset(dataset):
     elif dataset == 'pubmed':
         dataset = Planetoid(root='/tmp/PubMed', name='PubMed')
         num_classes = dataset.num_classes
+        legend_dict = load_pubmed_legend_dict()
     elif dataset == 'citeseer':
         dataset = Planetoid(root='/tmp/CiteSeer', name='CiteSeer')
         num_classes = dataset.num_classes
@@ -59,7 +67,16 @@ def load_dataset(dataset):
     return dataset[0], num_classes, legend_dict
 
 
-def name_from_args(args, labeled):
+def gtl_name_from_args(args, labeled):
+    return "{}_{}_{}_{}_{}".format(
+        args.dataset,
+        "sdgm" if args.sdgm else "dgm",
+        args.train_mode,
+        args.lens,
+        "labeled" if labeled else "pred")
+
+
+def dgm_name_from_args(args, labeled):
     return "{}_{}_{}_{}_{}".format(
         args.dataset,
         "sdgm" if args.sdgm else "dgm",

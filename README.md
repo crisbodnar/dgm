@@ -42,6 +42,8 @@ different class in the citation network.
 ![Structural Deep Graph Mapper Cora](figures/cora_sdgm_unsupervised_tsne_labeled.png)
 
 
+The graph-theoretic lenses (PageRank, Graph Density Function) can be run using ``./plot_gtl.sh``. 
+
 ## Running pooling experiments
 You can reproduce our results by running the `run.sh` script with the following arguments:
 1. index of the GPU to run the experiment on

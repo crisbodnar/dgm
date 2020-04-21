@@ -83,14 +83,14 @@ def plot_dgm_graph(args):
     binary = args.reduce_method == 'binary_prob'
     if not args.true_labels:
         plot_graph(out_graph, node_color=res['mnode_to_color'], node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-                   node_list=res['node_list'], name=name_from_args(args, False), save_dir=args.dir, colorbar=binary)
+                   node_list=res['node_list'], name=dgm_name_from_args(args, False), save_dir=args.dir, colorbar=binary)
 
     print("Filtered Mapper Graph nodes", out_graph.number_of_nodes())
     print("Filtered Mapper Graph edges", out_graph.number_of_edges())
 
     labeled_colors = color_mnodes_with_labels(res['mnode_to_nodes'], data.y.cpu().numpy(), binary=binary)
     plot_graph(out_graph, node_color=labeled_colors, node_size=res['node_sizes'], edge_weight=res['edge_weight'],
-               node_list=res['node_list'], name=name_from_args(args, True), save_dir=args.dir, colorbar=binary,
+               node_list=res['node_list'], name=dgm_name_from_args(args, True), save_dir=args.dir, colorbar=binary,
                legend_dict=legend_dict)
 
 
