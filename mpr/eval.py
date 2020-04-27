@@ -9,9 +9,9 @@ import networkx as nx
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 import torch
-from torch.nn import Linear, ModuleList
+from torch.nn import Linear, ModuleList, BatchNorm1d, Sequential
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GINConv
 from torch_geometric.datasets import TUDataset
 from torch_geometric.transforms import OneHotDegree
 from torch_geometric.utils import to_networkx, dense_to_sparse
@@ -24,7 +24,8 @@ EPS = 1e-5
 parser = argparse.ArgumentParser()
 
 # Model
-parser.add_argument('--mode', type=str, choices=['mpr', 'diffpool', 'mincut'])
+parser.add_argument('--mode', type=str, choices=['mpr', 'diffpool', 'mincut',
+                                                 'flat', 'gin', 'avgmlp'])
 parser.add_argument('--pagerank_pooling', type=bool, default=True)
 parser.add_argument('--cluster_dims', type=int, nargs='+')
 parser.add_argument('--hidden_dims', type=int, nargs='+')
@@ -34,7 +35,9 @@ parser.add_argument('--std_hidden_dim', type=int, default=32)
 
 # Optimization
 parser.add_argument('--dataset', type=str, default='DD',
-                    choices=['COLLAB', 'DD', 'PROTEINS', 'REDDIT-BINARY'])
+                    choices=['COLLAB', 'DD', 'PROTEINS', 'REDDIT-BINARY',
+                             'MUTAG', 'NCI1', 'IMDB-BINARY', 'IMDB-MULTI',
+                             'REDDIT-MULTI-5K'])
 parser.add_argument('--fold', type=int, choices=range(11), default=0)
 parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--lrate', type=float, default=1e-3)
@@ -226,9 +229,74 @@ class StandardPoolingModel(torch.nn.Module):
         return out, total_loss1, total_loss2
 
 
+class FlatModel(torch.nn.Module):
+    def __init__(self, hidden_dim=32):
+        super(FlatModel, self).__init__()
+        self.graph_convs = ModuleList([
+            GCNConv(dataset.num_node_features, hidden_dim),
+            GCNConv(hidden_dim, hidden_dim)])
+        self.graph_skips = ModuleList([
+            Linear(dataset.num_node_features, hidden_dim),
+            Linear(hidden_dim, hidden_dim)])
+
+        self.classifier = Linear(hidden_dim, dataset.num_classes)
+
+    def forward(self, x, edge_index):
+        for i in range(len(self.graph_convs)):
+            x = F.relu((self.graph_convs[i](x, edge_index) +
+                        self.graph_skips[i](x)))
+
+        x_avg = torch.mean(x, dim=0).unsqueeze(0)
+        out = self.classifier(x_avg)
+
+        return out
+
+
+class GINModel(torch.nn.Module):
+    def __init__(self, hidden_dim=64):
+        super(GINModel, self).__init__()
+        self.gin_layers = ModuleList([])
+        input_dim = dataset.num_node_features
+        for i in range(5):
+            mlp = Sequential(
+                Linear(input_dim, hidden_dim),
+                BatchNorm1d(hidden_dim),
+                Linear(hidden_dim, hidden_dim),
+                BatchNorm1d(hidden_dim)
+            )
+            self.gin_layers.append(GINConv(nn=mlp))
+            input_dim = hidden_dim
+
+        self.classifier = Linear(5 * hidden_dim, dataset.num_classes)
+
+    def forward(self, x, edge_index):
+        reprs = []
+        for i in range(5):
+            x = self.gin_layers[i](x, edge_index)
+            reprs.append(torch.sum(x, dim=0))
+
+        summary = torch.cat(reprs, dim=0).unsqueeze(0)
+        out = self.classifier(summary)
+
+        return out
+
+
+class AverageMLP(torch.nn.Module):
+    def __init__(self):
+        super(AverageMLP, self).__init__()
+        self.classifier = Linear(dataset.num_node_features, dataset.num_classes)
+
+    def forward(self, x, edge_index):
+        summary = torch.mean(x, dim=0).unsqueeze(0)
+        out = self.classifier(summary)
+
+        return out
+
+
 def get_graph_classification_dataset(dataset):
   node_transform = None
-  if dataset in ['COLLAB', 'REDDIT-BINARY']:
+  if dataset in ['COLLAB', 'REDDIT-BINARY', 'IMDB-BINARY', 'IMDB-MULTI',
+                 'REDDIT-MULTI-5K']:
     node_transform = OneHotDegree(max_degree=64)
 
   path = osp.join(osp.dirname('/tmp/'), dataset)
@@ -282,7 +350,7 @@ def mpr_forward(data, pool=True):
       # Compute pre-image f^-1(G)
       preimages = compute_preimages(G, vv, intervals)
       _, [mnode_to_nodes, mnode_to_color, node_to_mnode, adj] = build_mapper_graph(
-          G, preimages)
+          G, preimages, cluster=False, return_nx=False)
 
       mnode_features = torch.empty(size=(len(mnode_to_color), x.size(1)),
                                    dtype=torch.float).to(device)
@@ -378,6 +446,21 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
       for g_embed_net in g_embed_nets:
         params_list += list(g_embed_net.parameters())
       optimizer = torch.optim.Adam(params_list, lr=args.lrate)
+  elif args.mode == 'flat':
+      model = FlatModel().to(device)
+      print(model)
+      f.write(str(model) + '\n')
+      optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
+  elif args.mode == 'gin':
+      model = GINModel(hidden_dim=args.std_hidden_dim).to(device)
+      print(model)
+      f.write(str(model) + '\n')
+      optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
+  elif args.mode == 'avgmlp':
+      model = AverageMLP().to(device)
+      print(model)
+      f.write(str(model) + '\n')
+      optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
   else:
       model = StandardPoolingModel(mode=args.mode,
                                    hidden_dim=args.std_hidden_dim).to(device)
@@ -393,6 +476,9 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
         for g_embed_net in g_embed_nets:
           g_embed_net.train()
         g_classifier.train()
+    elif args.mode in ['flat', 'gin', 'avgmlp']:
+        train_loss = 0
+        model.train()
     else:
         train_loss1 = 0
         train_loss2 = 0
@@ -405,6 +491,8 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
       if args.mode == 'mpr':
           _, y_pred = mpr_forward(data, args.pagerank_pooling)
           y_pred = y_pred.unsqueeze(0)
+      elif args.mode in ['flat', 'gin', 'avgmlp']:
+          y_pred = model(data.x, data.edge_index)
       else:
           y_pred, loss1, loss2 = model(data.x, data.edge_index)
 
@@ -415,6 +503,10 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
           if i % args.sim_batch_size == 0:
             optimizer.step()
             optimizer.zero_grad()
+      elif args.mode in ['flat', 'gin', 'avgmlp']:
+          loss.backward()
+          optimizer.step()
+          optimizer.zero_grad()
       else:
           train_loss1 += loss1
           train_loss2 += loss2
@@ -435,6 +527,9 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
         for g_embed_net in g_embed_nets:
           g_embed_net.eval()
         g_classifier.eval()
+    elif args.mode in ['flat', 'gin', 'avgmlp']:
+        model.eval()
+        val_loss = 0
     else:
         model.eval()
         val_loss1 = 0
@@ -446,6 +541,8 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
         if args.mode == 'mpr':
             _, y_pred = mpr_forward(data, args.pagerank_pooling)
             y_pred = y_pred.unsqueeze(0)
+        elif args.mode in ['flat', 'gin', 'avgmlp']:
+            y_pred = model(data.x, data.edge_index)
         else:
             y_pred, loss1, loss2 = model(data.x, data.edge_index)
 
@@ -458,7 +555,7 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
 
       val_acc = float(val_acc) / len(val_dataset)
       val_loss /= len(val_dataset)
-      if args.mode == 'mpr':
+      if args.mode in ['mpr', 'flat', 'gin', 'avgmlp']:
           s = ('Epoch %d - train loss %.4f, val loss %.4f, val accuracy %.4f' %
                (epoch, train_loss, val_loss, val_acc))
       else:
@@ -486,6 +583,8 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
               for g_embed_net in g_embed_nets:
                 g_embed_net.eval()
               g_classifier.eval()
+          elif args.mode in ['flat', 'gin', 'avgmlp']:
+              model.eval()
           else:
               model.eval()
               test_loss1 = 0
@@ -496,6 +595,8 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
             if args.mode == 'mpr':
                 _, y_pred = mpr_forward(data, args.pagerank_pooling)
                 y_pred = y_pred.unsqueeze(0)
+            elif args.mode in ['flat', 'gin', 'avgmlp']:
+                y_pred = model(data.x, data.edge_index)
             else:
                 y_pred, loss1, loss2 = model(data.x, data.edge_index)
 
@@ -508,7 +609,7 @@ for train_val_idxs, test_idxs in kf.split(dataset, dataset.data.y):
 
           test_acc = float(test_acc) / len(test_dataset)
           test_loss /= len(test_dataset)
-          if args.mode == 'mpr':
+          if args.mode in ['mpr', 'flat', 'gin', 'avgmlp']:
               s = ('Epoch %d - test loss %.4f, test accuracy %.4f' %
                    (epoch, test_loss, test_acc))
           else:
