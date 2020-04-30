@@ -5,6 +5,9 @@ import os
 import os.path as osp
 import random
 import numpy as np
+import torch.nn.functional as F
+
+from mpr.pmodels import MPRModel, StandardPoolingModel, FlatModel, AverageMLP, GINModel
 
 from sklearn.model_selection import StratifiedKFold
 from torch_geometric.datasets import TUDataset
@@ -132,25 +135,9 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
     train_dataset, train_y = select_subset(train_dataset, shuffled_idx)
 
     if args.mode == 'mpr':
-        g_embed_nets = []
-        prev_dim = dataset.num_node_features
-        for i in range(len(args.hidden_dims)):
-            curr_dim = args.hidden_dims[i]
-            g_embed_nets.append(GEmbedNet(input_dim=prev_dim,
-                                          hidden_dim=curr_dim).to(device))
-            print(g_embed_nets[-1])
-            f.write(str(g_embed_nets[-1]) + '\n')
-            prev_dim = curr_dim
-
-        g_classifier = GClassifier(input_dim=args.hidden_dims[-1],
-                                   hidden_dim=args.hidden_dims[-1]).to(device)
-        print(g_classifier)
-        f.write(str(g_classifier) + '\n')
-
-        params_list = list(g_classifier.parameters())
-        for g_embed_net in g_embed_nets:
-            params_list += list(g_embed_net.parameters())
-        optimizer = torch.optim.Adam(params_list, lr=args.lrate)
+        model = MPRModel(dataset, args.hidden_dims, args.cluster_dims, args.interval_overlap)
+        print(model)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
     elif args.mode == 'flat':
         model = FlatModel().to(device)
         print(model)
@@ -177,12 +164,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
     for epoch in range(args.epochs):
         # Train model
         train_loss = 0
-        if args.mode == 'mpr':
-            for g_embed_net in g_embed_nets:
-                g_embed_net.train()
-            g_classifier.train()
-        elif args.mode in ['flat', 'gin', 'avgmlp']:
-            train_loss = 0
+        if args.mode in ['mpr', 'flat', 'gin', 'avgmlp']:
             model.train()
         else:
             train_loss1 = 0
@@ -194,7 +176,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
         for i, data in enumerate(train_dataset):
             data = data.to(device)
             if args.mode == 'mpr':
-                _, y_pred = mpr_forward(data, args.pagerank_pooling)
+                y_pred = model(data.x, data.edge_index, args.pagerank_pooling)
                 y_pred = y_pred.unsqueeze(0)
             elif args.mode in ['flat', 'gin', 'avgmlp']:
                 y_pred = model(data.x, data.edge_index)
@@ -228,11 +210,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
         # Run validation set
         val_acc = 0
         val_loss = 0
-        if args.mode == 'mpr':
-            for g_embed_net in g_embed_nets:
-                g_embed_net.eval()
-            g_classifier.eval()
-        elif args.mode in ['flat', 'gin', 'avgmlp']:
+        if args.mode in ['mpr', 'flat', 'gin', 'avgmlp']:
             model.eval()
             val_loss = 0
         else:
@@ -244,7 +222,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
             for _, data in enumerate(val_dataset):
                 data = data.to(device)
                 if args.mode == 'mpr':
-                    _, y_pred = mpr_forward(data, args.pagerank_pooling)
+                    y_pred = model(data.x, data.edge_index, args.pagerank_pooling)
                     y_pred = y_pred.unsqueeze(0)
                 elif args.mode in ['flat', 'gin', 'avgmlp']:
                     y_pred = model(data.x, data.edge_index)
@@ -284,11 +262,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
                 # Run test set
                 test_acc = 0
                 test_loss = 0
-                if args.mode == 'mpr':
-                    for g_embed_net in g_embed_nets:
-                        g_embed_net.eval()
-                    g_classifier.eval()
-                elif args.mode in ['flat', 'gin', 'avgmlp']:
+                if args.mode in ['mpr', 'flat', 'gin', 'avgmlp']:
                     model.eval()
                 else:
                     model.eval()
@@ -298,7 +272,7 @@ for train_val_idxs, test_idxs in kf.split(np.zeros(len(dataset.data.y)), dataset
                 for _, data in enumerate(test_dataset):
                     data = data.to(device)
                     if args.mode == 'mpr':
-                        _, y_pred = mpr_forward(data, args.pagerank_pooling)
+                        y_pred = model(data.x, data.edge_index, args.pagerank_pooling)
                         y_pred = y_pred.unsqueeze(0)
                     elif args.mode in ['flat', 'gin', 'avgmlp']:
                         y_pred = model(data.x, data.edge_index)

@@ -29,7 +29,7 @@ def compute_preimages(G, f, intervals=generate_intervals()):
     return preimages
 
 
-def mapper_pool(G, preimages, device='cpu'):
+def mapper_pool(G, preimages, adj):
     """Given a graph G and the preimages of the function f on G it builds the
       mapper graph.
 
@@ -37,25 +37,20 @@ def mapper_pool(G, preimages, device='cpu'):
       G: The graph to be visualized.
       preimages: The preimages of a function f on the nodes of graph G.
     """
-    mnode_to_nodes = np.empty((len(preimages), G.number_of_nodes())).to(device)
-    current_adj = torch.tensor(
-        nx.to_numpy_matrix(G, nodelist=np.arange(G.number_of_nodes()), dtype=np.float32)).to(device)
+    mnode_to_nodes = torch.zeros((len(preimages), G.number_of_nodes())).to(adj.device)
 
     # Each preimage has a corresponding colour given by its index.
-    for pre_img in preimages:
+    for i, pre_img in enumerate(preimages):
         # Skip if the preimage is empty
         if not len(pre_img):
             continue
 
         # Make each connected component a node and assign its color.
-        adj_row = torch.zeros(G.number_of_nodes()).to(device)
-        adj_row[np.fromiter(pre_img, int, len(pre_img))] = 1.0
-        mnode_to_nodes.append(adj_row)
+        mnode_to_nodes[i, np.fromiter(pre_img, int, len(pre_img))] = 1.0
 
     # Initialise Mapper graph
-    mnode_to_nodes = torch.stack(mnode_to_nodes).to(device)
-    mnode_to_nodes = mnode_to_nodes / torch.sum(mnode_to_nodes, dim=0)
-    adj = mnode_to_nodes.mm(current_adj).mm(mnode_to_nodes.t())
+    mnode_to_nodes = torch.softmax(mnode_to_nodes, dim=0)
+    adj = mnode_to_nodes @ adj @ mnode_to_nodes.t()
 
     return mnode_to_nodes, adj
 
@@ -67,8 +62,8 @@ def mpr_pool(x, adj, clusters, overlap, EPS=1e-9):
     pr = np.empty(graph.number_of_nodes())
 
     # Convert dictionary to numpy array
-    keys = np.array(pr_dict.keys(), dtype=np.int32)
-    values = np.array(pr_dict.values(), dtype=np.float32)
+    keys = np.array(list(pr_dict.keys()), dtype=np.int32)
+    values = np.array(list(pr_dict.values()), dtype=np.float32)
     pr[keys] = values
 
     # Scale the lens values in the unit interval
@@ -80,11 +75,9 @@ def mpr_pool(x, adj, clusters, overlap, EPS=1e-9):
     curr_cluster_dim = clusters
     intervals = generate_intervals(num=curr_cluster_dim, overlap=overlap)
 
-    # Compute pre-image f^-1(G)
+    # Compute the cluster assignment and the new features
     preimages = compute_preimages(graph, pr, intervals)
-    St, A = mapper_pool(graph, preimages)
-
-    A = torch.tensor(A).to(x.device)
-    X = St.dot(A)
+    St, A = mapper_pool(graph, preimages, adj)
+    X = St @ x
 
     return X, A

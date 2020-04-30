@@ -8,7 +8,7 @@ from mpr.utils import dense_diff_pool, dense_mincut_pool, to_dense_adj
 
 from torch_geometric.nn import GCNConv, GINConv
 from torch.nn import Linear, ModuleList, BatchNorm1d, Sequential
-from torch_geometric.utils import to_networkx, dense_to_sparse
+from torch_geometric.utils import dense_to_sparse
 
 
 class GEmbedNet(torch.nn.Module):
@@ -24,7 +24,7 @@ class GEmbedNet(torch.nn.Module):
 
 
 class GClassifier(torch.nn.Module):
-    def __init__(self, input_dim=128, hidden_dim=128):
+    def __init__(self, dataset, input_dim=128, hidden_dim=128):
         super(GClassifier, self).__init__()
         self.conv1 = GCNConv(input_dim, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, hidden_dim)
@@ -41,30 +41,32 @@ class GClassifier(torch.nn.Module):
 
 
 class MPRModel(torch.nn.Module):
-    def __init__(self, hidden_dims, num_node_features, cluster_dims):
+    def __init__(self, dataset, hidden_dims, cluster_dims, overlap):
         super(MPRModel, self).__init__()
         self.hidden_dims = hidden_dims
-        self.num_node_features = num_node_features
+        self.num_node_features = dataset.num_node_features
         self.cluster_dims = cluster_dims
+        self.overlap = overlap
         self.embed_nets = ModuleList()
 
-        prev_dim = num_node_features
+        prev_dim = dataset.num_node_features
         for i in range(len(hidden_dims)):
             curr_dim = hidden_dims[i]
             self.embed_nets.append(GEmbedNet(input_dim=prev_dim, hidden_dim=curr_dim))
             prev_dim = curr_dim
 
-        self.g_classifier = GClassifier(input_dim=hidden_dims[-1], hidden_dim=hidden_dims[-1])
+        self.g_classifier = GClassifier(dataset, input_dim=hidden_dims[-1], hidden_dim=hidden_dims[-1])
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, edge_index, pool=True):
         for i in range(len(self.hidden_dims)):
             x = self.embed_nets[i](x, edge_index)
-            x, adj = mpr_pool(x, to_dense_adj(edge_index, x.size(0), edge_attr=edge_attr),
-                              clusters=self.cluster_dims[i], overlap=self.overlap)
 
-            edge_index, edge_attr = dense_to_sparse(adj.squeeze(0))
+            if pool:
+                x, adj = mpr_pool(x, to_dense_adj(edge_index, x.size(0), edge_attr=None)[0],
+                                  clusters=self.cluster_dims[i], overlap=self.overlap)
+                edge_index, edge_attr = dense_to_sparse(adj.squeeze(0))
 
-        y_pred = self.g_classifier(x, edge_index, edge_attr)
+        y_pred = self.g_classifier(x, edge_index, None)
         return y_pred
 
 
@@ -133,7 +135,7 @@ class StandardPoolingModel(torch.nn.Module):
 
 
 class FlatModel(torch.nn.Module):
-    def __init__(self, hidden_dim=32):
+    def __init__(self, dataset, hidden_dim=32):
         super(FlatModel, self).__init__()
         self.graph_convs = ModuleList([
             GCNConv(dataset.num_node_features, hidden_dim),
@@ -156,7 +158,7 @@ class FlatModel(torch.nn.Module):
 
 
 class GINModel(torch.nn.Module):
-    def __init__(self, hidden_dim=64):
+    def __init__(self, dataset, hidden_dim=64):
         super(GINModel, self).__init__()
         self.gin_layers = ModuleList([])
         input_dim = dataset.num_node_features
@@ -185,7 +187,7 @@ class GINModel(torch.nn.Module):
 
 
 class AverageMLP(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, dataset):
         super(AverageMLP, self).__init__()
         self.classifier = Linear(dataset.num_node_features, dataset.num_classes)
 
