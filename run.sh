@@ -55,8 +55,7 @@ mincut)
   ;;
 esac
 
-cd mpr/;
-CUDA_VISIBLE_DEVICES=${GPU} python eval.py \
+CUDA_VISIBLE_DEVICES=${GPU} python -u eval.py \
     --data $DATA \
     --fold $fold \
     --mode $mode \
