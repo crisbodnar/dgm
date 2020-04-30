@@ -4,12 +4,7 @@ Graph classification on MUTAG using the Weisfeiler-Lehman subtree kernel.
 =========================================================================
 Script makes use of :class:`grakel.WeisfeilerLehman`, :class:`grakel.VertexHistogram`
 """
-from __future__ import print_function
-print(__doc__)
-
-import numpy as np
-
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -22,6 +17,7 @@ dataset = fetch_dataset("REDDIT-MULTI-5K", verbose=False, produce_labels_nodes=T
 # Splits the dataset into a training and a test set
 kf = StratifiedKFold(n_splits=10, shuffle=False)
 curr_fold = 0
+
 for train_val_idxs, test_idxs in kf.split(dataset.data, dataset.target):
     curr_fold += 1
     print('>>> 10-fold cross-validation --- fold %d' % curr_fold)

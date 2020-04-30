@@ -12,12 +12,21 @@ The 1-skeleton of the nerve of the pull back cover provides the visual summary o
 The diagram is inspired from [Hajij et al. (2018)](https://arxiv.org/abs/1804.11242).
 
 ## Getting started
-We used `python 3.5` for this project. To setup the virtual environment and necessary packages, please run the following commands:
-```
-$ virtualenv -p python3.5 dgm
+We used `python 3.6` for this project. To setup the virtual environment and necessary packages, please run the following commands:
+```bash
+$ virtualenv -p python3.6 dgm
 $ source dgm/bin/activate
-$ pip3 install torch==1.4.0 torchvision==0.5.0
 $ pip3 install -r requirements.txt
+```
+
+You will also need to install `PyTorch 1.5.0` from the [official website](https://pytorch.org/). Then use the following to install PyTorch Geometric, 
+where `${CUDA}` is replaced by either `cpu`, `cu92`, `cu100` or `cu101` depending on your PyTorch installation.
+
+```bash
+$ pip install torch-scatter==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.5.0.html
+$ pip install torch-sparse==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.5.0.html
+$ pip install torch-cluster==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.5.0.html
+$ python setup.py install or pip install torch-geometric
 ```
 
 ## Visualisations
@@ -30,10 +39,10 @@ described in Appendix B of the paper.
 DGM can be used as follows
 
 ```
-from dgm.dgm import DGM
+from dgm import DGM
 
-dgm = DGM(num_intervals=10, overlap=0.1)
-out_graph, res = dgm.fit_transform(graph, node_embeddings)
+graph_mapper = DGM(num_intervals=10, overlap=0.1)
+out_graph, res = graph_mapper.fit_transform(graph, node_embeddings)
 ```
 
 An example SDGM visualisation of Cora with Deep Graph Infomax lens can be seen below. Each colour represents a 
