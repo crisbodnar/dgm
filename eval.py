@@ -48,7 +48,7 @@ def get_graph_classification_dataset(dataset):
                    'REDDIT-MULTI-5K']:
         node_transform = OneHotDegree(max_degree=64)
 
-    path = osp.join(osp.dirname('/tmp/'), dataset)
+    path = osp.join(osp.dirname('./graph_datasets/'), dataset)
     dataset = TUDataset(path, name=dataset, pre_transform=node_transform)
 
     return dataset
