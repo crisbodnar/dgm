@@ -238,7 +238,7 @@ class OneHotDegree(object):
     def __call__(self, data):
         idx, x = data.edge_index[1 if self.in_degree else 0], data.x
         deg = degree(idx, data.num_nodes, dtype=torch.long)
-        deg = torch.max(deg, self.max_degree)
+        deg = torch.clamp(deg, max=self.max_degree)
         deg = F.one_hot(deg, num_classes=self.max_degree + 1).to(torch.float)
 
         if x is not None and self.cat:
