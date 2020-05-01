@@ -8,13 +8,10 @@ import numpy as np
 import torch.nn.functional as F
 
 from mpr.pmodels import MPRModel, StandardPoolingModel, FlatModel, AverageMLP, GINModel
+from mpr.utils import OneHotDegree
 
 from sklearn.model_selection import StratifiedKFold
 from torch_geometric.datasets import TUDataset
-from torch_geometric.transforms import OneHotDegree
-
-
-EPS = 1e-5
 
 
 parser = argparse.ArgumentParser()
