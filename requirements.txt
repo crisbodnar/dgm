@@ -3,7 +3,7 @@ networkx==2.4
 numpy==1.18.1
 pandas==0.24.2
 scikit-learn==0.22.1
-scipy==1.4.1
+scipy==1.10.0
 pydot==1.4.1
 graphviz==0.13.2
 umap-learn==0.4.1
